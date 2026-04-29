@@ -181,8 +181,31 @@ body { font-family: 'BIZ UDGothic', sans-serif; color: var(--text); background: 
   display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
   border-radius: 20px; font-size: .78rem; font-weight: 700; margin-bottom: 8px;
 }
-.km-pattern-badge.p1 { background: #fde8e8; color: #c0392b; }
-.km-pattern-badge.p2 { background: #fef3cd; color: #856404; }
+	.km-pattern-badge.p1 { background: #fde8e8; color: #c0392b; }
+	.km-pattern-badge.p2 { background: #fef3cd; color: #856404; }
+	.km-history-list {
+	  list-style: none;
+	  display: flex;
+	  flex-wrap: wrap;
+	  gap: 6px;
+	}
+	.km-history-list li {
+	  min-width: 34px;
+	  padding: 4px 8px;
+	  border-radius: 7px;
+	  border: 1px solid var(--border);
+	  background: #fff;
+	  text-align: center;
+	  font-family: 'BIZ UDMincho', serif;
+	  font-size: 1.4rem;
+	  color: var(--main);
+	  line-height: 1.2;
+	}
+	.km-history-empty {
+	  font-size: .82rem;
+	  color: #888;
+	  font-weight: 700;
+	}
 
 /* フラッシュ */
 .km-flash {
@@ -277,10 +300,9 @@ body { font-family: 'BIZ UDGothic', sans-serif; color: var(--text); background: 
         </div>
       </div>
       <div class="km-sb-section">
-        <h3>正しい漢字</h3>
-        <div style="text-align:center;">
-          <div id="km-correctKanji" style="font-family:'BIZ UDMincho',serif;font-size:4rem;font-weight:900;color:var(--main-l);opacity:0.15;transition:opacity .3s;">？</div>
-        </div>
+        <h3>解答履歴</h3>
+        <div id="km-historyEmpty" class="km-history-empty">まだ解答がありません</div>
+        <ul id="km-historyList" class="km-history-list"></ul>
       </div>
     </aside>
   </div>
@@ -295,6 +317,7 @@ const JSON_URL = '/wp-content/uploads/apps-data/kanji5_units/kanji5_units.json';
 const selectedItems = new Map(); // key: "unit::kanji", value: dataオブジェクト
 let questions  = []; // 生成済みパターンの配列
 let qIdx       = 0;
+const answeredIdxSet = new Set();
 
 // ===== DOM =====
 const setupEl    = document.getElementById('km-setup');
@@ -315,7 +338,8 @@ const qTotalEl   = document.getElementById('km-qTotal');
 const patternPill= document.getElementById('km-patternPill');
 const patternBadge=document.getElementById('km-patternBadge');
 const answerText = document.getElementById('km-answerText');
-const correctEl  = document.getElementById('km-correctKanji');
+const historyList = document.getElementById('km-historyList');
+const historyEmpty = document.getElementById('km-historyEmpty');
 const flashEl    = document.getElementById('km-flash');
 
 // =====================================================
@@ -406,6 +430,9 @@ function initSetup(UNITS) {
     // 各漢字のパターンを事前生成してシャッフル
     questions = generateAllPatterns(kanjis);
     qIdx = 0;
+    answeredIdxSet.clear();
+    historyList.innerHTML = '';
+    historyEmpty.classList.remove('km-hidden');
     setupEl.classList.add('km-hidden');
     gameEl.classList.remove('km-hidden');
     showQuestion(0);
@@ -651,11 +678,15 @@ function showQuestion(idx) {
   answerText.classList.remove('km-show');
   answerText.textContent = q.detail;
   patternBadge.style.display = 'none';
-  correctEl.textContent = q.kanji;
-  correctEl.style.opacity = '0.12';
-
   nextBtn.textContent = idx >= questions.length - 1 ? '（最後の問題）' : '次の問題 ▶';
   nextBtn.disabled    = idx >= questions.length - 1;
+}
+
+function addHistory(kanji) {
+  const li = document.createElement('li');
+  li.textContent = kanji;
+  historyList.appendChild(li);
+  historyEmpty.classList.add('km-hidden');
 }
 
 // =====================================================
@@ -671,7 +702,10 @@ revealBtn.addEventListener('click', () => {
   patternBadge.style.display = 'inline-flex';
   patternBadge.className = 'km-pattern-badge ' + (q.type===1?'p1':'p2');
   patternBadge.textContent = q.type===1 ? '✏️ 途中で止まる' : '🚫 1画ない';
-  correctEl.style.opacity = '1';
+  if (!answeredIdxSet.has(qIdx)) {
+    answeredIdxSet.add(qIdx);
+    addHistory(q.kanji);
+  }
 });
 
 backSetup.addEventListener('click', () => {
