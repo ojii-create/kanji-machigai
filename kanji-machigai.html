@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>まちがい漢字アプリ（5年生）</title>
+  <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho&family=Dela+Gothic+One&display=swap" rel="stylesheet">
+  <style>
+/* ===== 変数・リセット ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --main:    #1e3a5f;
+  --main-l:  #2d5a8f;
+  --main-d:  #0f1e3a;
+  --gold:    #d4af37;
+  --gold-l:  #f4cf5f;
+  --gold-d:  #a07d10;
+  --bg:      #f4f6f9;
+  --border:  #dde3ec;
+  --text:    #2c3e50;
+  --sidebar: 210px;
+  --header:  52px;
+}
+body { font-family: 'BIZ UDGothic', sans-serif; color: var(--text); background: var(--main-d); min-height: 100vh; }
+.km-hidden { display: none !important; }
+
+/* ===== ボタン ===== */
+.km-btn {
+  all: unset; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  width: 100%; box-sizing: border-box; border-radius: 10px; padding: 10px 14px;
+  font-family: 'BIZ UDGothic', sans-serif; font-weight: 700; font-size: .88rem;
+  cursor: pointer; transition: all .16s; text-align: center;
+}
+.km-btn:disabled { opacity: .4 !important; cursor: not-allowed !important; transform: none !important; }
+.km-btn-primary { background: linear-gradient(135deg, var(--main-l), var(--main)); color: #fff !important; box-shadow: 0 3px 8px rgba(30,58,95,.3); }
+.km-btn-primary:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-2px); }
+.km-btn-gold { background: linear-gradient(135deg, var(--gold-l), var(--gold)); color: var(--main-d) !important; box-shadow: 0 3px 8px rgba(212,175,55,.35); }
+.km-btn-gold:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-2px); }
+.km-btn-gray { background: #7f8c8d; color: #fff !important; }
+.km-btn-gray:hover:not(:disabled) { background: #636e72; transform: translateY(-1px); }
+.km-btn-danger { background: #c0392b; color: #fff !important; }
+.km-btn-danger:hover:not(:disabled) { background: #a93226; transform: translateY(-1px); }
+
+/* =====================================================
+   設定画面
+   ===================================================== */
+.km-setup {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--main-d); overflow-y: auto; padding: 16px; z-index: 9990;
+}
+.km-setup-modal {
+  background: #fff; border-radius: 20px; box-shadow: 0 16px 48px rgba(0,0,0,.45);
+  width: 100%; max-width: 560px; display: flex; flex-direction: column;
+  max-height: calc(100vh - 32px); overflow: hidden;
+}
+.km-setup-title {
+  text-align: center; padding: 22px 24px 16px;
+  font-family: 'Dela Gothic One', sans-serif; font-size: clamp(1.4rem, 4vw, 1.9rem);
+  color: var(--main); letter-spacing: .04em; flex-shrink: 0;
+}
+.km-setup-title em { font-style: normal; color: var(--gold-d); }
+
+/* 単元スクロール */
+.km-unit-scroll {
+  flex: 1; overflow-y: auto; min-height: 0; margin: 0 12px;
+  border: 1.5px solid var(--border); border-radius: 12px; background: #fafcff;
+}
+.km-unit-item { border-bottom: 1px solid var(--border); }
+.km-unit-item:last-child { border-bottom: none; }
+.km-unit-header {
+  display: flex; align-items: center; gap: 10px; padding: 13px 16px;
+  background: #f4f7fb; cursor: pointer; user-select: none; transition: background .12s;
+}
+.km-unit-header:hover { background: #ddeaf8; }
+.km-unit-name { flex: 1; font-size: .95rem; font-weight: 700; color: var(--main); }
+.km-unit-count { font-size: .8rem; color: #999; white-space: nowrap; flex-shrink: 0; }
+.km-unit-sel { font-size: .78rem; color: var(--gold-d); font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.km-unit-toggle { font-size: .65rem; color: #bbb; transition: transform .18s; flex-shrink: 0; }
+.km-unit-toggle.km-open { transform: rotate(90deg); }
+.km-kanji-grid { display: none; flex-wrap: wrap; gap: 6px; padding: 10px 14px 12px; background: #f0f4fb; border-top: 1px solid var(--border); }
+.km-kanji-grid.km-open { display: flex; }
+.km-kanji-chip {
+  display: flex; align-items: center; gap: 5px; padding: 5px 10px;
+  background: #fff; border: 1.5px solid var(--border); border-radius: 8px;
+  cursor: pointer; user-select: none; transition: background .1s;
+}
+.km-kanji-chip:hover { background: #e4edf8; }
+.km-kanji-chip.km-checked { background: #dceeff; border-color: var(--main-l); }
+.km-kanji-chip input { width: 14px; height: 14px; accent-color: var(--main); cursor: pointer; margin: 0; }
+.km-kanji-chip span { font-size: 1.3rem; color: var(--main); line-height: 1; }
+.km-unit-cb-btn {
+  all: unset; cursor: pointer; font-size: .72rem; font-weight: 700;
+  color: var(--main-l); border: 1.5px solid var(--main-l); border-radius: 6px; padding: 2px 7px;
+  transition: all .13s; flex-shrink: 0; font-family: 'BIZ UDGothic', sans-serif;
+}
+.km-unit-cb-btn:hover { background: var(--main-l); color: #fff; }
+.km-unit-cb-btn.all-sel { background: var(--main); color: #fff; border-color: var(--main); }
+
+.km-sel-count-bar { text-align: right; font-size: .82rem; color: #888; padding: 6px 20px 0; flex-shrink: 0; }
+.km-sel-count-bar strong { color: var(--main); font-size: 1rem; }
+.km-start-area { padding: 12px 20px 20px; flex-shrink: 0; }
+.km-start-area .km-btn { font-size: 1.1rem; padding: 15px; border-radius: 12px; }
+
+/* ローディング・エラー */
+.km-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; gap: 18px; flex: 1; }
+.km-spinner { width: 48px; height: 48px; border: 5px solid var(--border); border-top-color: var(--main); border-radius: 50%; animation: kmSpin .8s linear infinite; }
+@keyframes kmSpin { to { transform: rotate(360deg); } }
+.km-loading-text { font-size: .95rem; color: #888; font-weight: 700; }
+.km-load-error { display: flex; flex-direction: column; align-items: center; padding: 40px 24px; gap: 14px; text-align: center; flex: 1; }
+.km-load-error-icon { font-size: 2.8rem; }
+.km-load-error-text { font-size: .95rem; color: #c0392b; font-weight: 700; }
+
+/* =====================================================
+   ゲーム画面
+   ===================================================== */
+.km-game {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  background: linear-gradient(135deg, #fff 0%, var(--bg) 100%); z-index: 9980;
+}
+.km-game-header {
+  background: var(--main); border-bottom: 3px solid var(--gold);
+  height: var(--header); display: flex; align-items: center;
+  justify-content: space-between; padding: 0 16px; flex-shrink: 0;
+}
+.km-game-header h1 {
+  all: unset; font-family: 'Dela Gothic One', sans-serif; color: #fff !important; font-size: 1.1rem; letter-spacing: .05em;
+}
+.km-pill-row { display: flex; gap: 7px; }
+.km-pill {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 11px;
+  border-radius: 999px; background: rgba(255,255,255,.13); color: #fff !important; font-size: .86rem; font-weight: 700;
+}
+.km-pill strong { color: var(--gold-l) !important; font-size: .96rem; }
+
+.km-game-body {
+  flex: 1; display: grid; grid-template-columns: var(--sidebar) 1fr var(--sidebar);
+  overflow: hidden; min-height: 0;
+}
+
+/* 左サイドバー */
+.km-sidebar-left {
+  background: #fff; border-right: 2px solid var(--border);
+  display: flex; flex-direction: column; padding: 10px; gap: 8px; overflow-y: auto;
+}
+.km-sb-section {
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: 9px; padding: 9px;
+}
+.km-sb-section h3 {
+  all: unset; display: flex; align-items: center; gap: 4px;
+  font-size: .78rem; color: var(--main) !important; font-weight: 700 !important; margin-bottom: 6px;
+}
+.km-sb-section h3::before { content: ''; width: 3px; height: 11px; background: var(--gold); border-radius: 2px; }
+.km-sb-btns { display: flex; flex-direction: column; gap: 6px; }
+
+/* 中央ステージ */
+.km-stage { display: flex; align-items: center; justify-content: center; padding: 12px; }
+.km-canvas-outer {
+  width: min(calc(100vh - var(--header) - 36px), calc(100vw - var(--sidebar) * 2 - 24px));
+  aspect-ratio: 1; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 4px 24px rgba(30,58,95,.15); background: #fff;
+}
+.km-canvas-outer svg { width: 100%; height: 100%; }
+.km-gridline   { stroke: #edf1f7; stroke-width: 0.5; fill: none; }
+.km-gridcenter { stroke: var(--gold); stroke-width: 0.5; stroke-dasharray: 4 4; opacity: 0.4; fill: none; }
+
+/* 右サイドバー */
+.km-sidebar-right {
+  background: #fff; border-left: 2px solid var(--border);
+  display: flex; flex-direction: column; padding: 10px; gap: 8px; overflow-y: auto;
+}
+.km-answer-box {
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: 9px; padding: 10px;
+}
+.km-answer-label { font-size: .75rem; color: #888; font-weight: 700; margin-bottom: 6px; }
+.km-answer-text {
+  font-family: 'BIZ UDMincho', serif; font-size: 1.1rem; color: var(--main);
+  line-height: 1.7; display: none;
+}
+.km-answer-text.km-show { display: block; }
+.km-pattern-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
+  border-radius: 20px; font-size: .78rem; font-weight: 700; margin-bottom: 8px;
+}
+.km-pattern-badge.p1 { background: #fde8e8; color: #c0392b; }
+.km-pattern-badge.p2 { background: #fef3cd; color: #856404; }
+
+/* フラッシュ */
+.km-flash {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(.5);
+  font-family: 'Dela Gothic One', sans-serif; font-size: 3.5rem; padding: 16px 44px;
+  border-radius: 18px; opacity: 0; pointer-events: none; z-index: 99999; white-space: nowrap;
+}
+.km-flash.show { background: rgba(46,204,113,.95); color: #fff; animation: kmFlash 1.4s ease forwards; }
+@keyframes kmFlash {
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(.6); }
+  20%  { opacity:1; transform:translate(-50%,-50%) scale(1.08); }
+  70%  { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(.9); }
+}
+
+@media (max-width: 640px) { :root { --sidebar: 140px; } }
+  </style>
+</head>
+<body>
+
+<!-- =====================================================
+     設定画面
+     ===================================================== -->
+<div class="km-setup" id="km-setup">
+  <div class="km-setup-modal">
+    <div class="km-setup-title">🔍 まちがい<em>漢字</em>アプリ（5年生）</div>
+    <div class="km-loading" id="km-loading">
+      <div class="km-spinner"></div>
+      <div class="km-loading-text">データを読み込み中…</div>
+    </div>
+    <div class="km-load-error km-hidden" id="km-loadError">
+      <div class="km-load-error-icon">⚠️</div>
+      <div class="km-load-error-text">データの読み込みに失敗しました</div>
+      <button class="km-btn km-btn-primary" id="km-retryLoad" style="width:auto;padding:10px 28px;">再試行</button>
+    </div>
+    <div id="km-setupUi" class="km-hidden" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+      <div class="km-unit-scroll" id="km-unitScroll"></div>
+      <div class="km-sel-count-bar"><strong id="km-selCount">0</strong> 字選択中</div>
+      <div class="km-start-area">
+        <button class="km-btn km-btn-gold" id="km-startBtn" disabled>漢字を選んでください</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     ゲーム画面
+     ===================================================== -->
+<div class="km-game km-hidden" id="km-game">
+  <header class="km-game-header">
+    <h1>🔍 まちがい漢字アプリ</h1>
+    <div class="km-pill-row">
+      <span class="km-pill">問題 <strong id="km-qNow">1</strong> / <strong id="km-qTotal">1</strong></span>
+      <span class="km-pill" id="km-patternPill">－</span>
+    </div>
+  </header>
+
+  <div class="km-game-body">
+    <!-- 左サイドバー -->
+    <aside class="km-sidebar-left">
+      <div class="km-sb-section">
+        <h3>操作</h3>
+        <div class="km-sb-btns">
+          <button class="km-btn km-btn-gold" id="km-nextBtn">次の問題 ▶</button>
+          <button class="km-btn km-btn-primary" id="km-revealBtn">答えを見る</button>
+          <button class="km-btn km-btn-gray" id="km-backSetup">⚙ 設定に戻る</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 中央キャンバス -->
+    <main class="km-stage">
+      <div class="km-canvas-outer">
+        <svg id="km-svg" viewBox="0 0 109 109" xmlns="http://www.w3.org/2000/svg">
+          <line class="km-gridline"   x1="0"    y1="54.5" x2="109"  y2="54.5"/>
+          <line class="km-gridline"   x1="54.5" y1="0"    x2="54.5" y2="109"/>
+          <line class="km-gridcenter" x1="0"    y1="54.5" x2="109"  y2="54.5"/>
+          <line class="km-gridcenter" x1="54.5" y1="0"    x2="54.5" y2="109"/>
+          <g id="km-strokes"></g>
+        </svg>
+      </div>
+    </main>
+
+    <!-- 右サイドバー -->
+    <aside class="km-sidebar-right">
+      <div class="km-sb-section">
+        <h3>まちがいヒント</h3>
+        <div class="km-answer-box">
+          <div id="km-patternBadge" class="km-pattern-badge p1" style="display:none;"></div>
+          <div class="km-answer-label">まちがいの内容</div>
+          <div class="km-answer-text" id="km-answerText">「答えを見る」を押してください</div>
+        </div>
+      </div>
+      <div class="km-sb-section">
+        <h3>正しい漢字</h3>
+        <div style="text-align:center;">
+          <div id="km-correctKanji" style="font-family:'BIZ UDMincho',serif;font-size:4rem;font-weight:900;color:var(--main-l);opacity:0.15;transition:opacity .3s;">？</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="km-flash" id="km-flash"></div>
+
+<script>
+// ===== データ読み込み =====
+const JSON_URL = '/wp-content/uploads/apps-data/kanji5_units/kanji5_units.json';
+
+const selectedItems = new Map(); // key: "unit::kanji", value: dataオブジェクト
+let questions  = []; // 生成済みパターンの配列
+let qIdx       = 0;
+
+// ===== DOM =====
+const setupEl    = document.getElementById('km-setup');
+const gameEl     = document.getElementById('km-game');
+const loadingEl  = document.getElementById('km-loading');
+const loadErrEl  = document.getElementById('km-loadError');
+const setupUiEl  = document.getElementById('km-setupUi');
+const unitScroll = document.getElementById('km-unitScroll');
+const selCount   = document.getElementById('km-selCount');
+const startBtn   = document.getElementById('km-startBtn');
+const nextBtn    = document.getElementById('km-nextBtn');
+const revealBtn  = document.getElementById('km-revealBtn');
+const backSetup  = document.getElementById('km-backSetup');
+const strokesEl  = document.getElementById('km-strokes');
+const svgEl      = document.getElementById('km-svg');
+const qNowEl     = document.getElementById('km-qNow');
+const qTotalEl   = document.getElementById('km-qTotal');
+const patternPill= document.getElementById('km-patternPill');
+const patternBadge=document.getElementById('km-patternBadge');
+const answerText = document.getElementById('km-answerText');
+const correctEl  = document.getElementById('km-correctKanji');
+const flashEl    = document.getElementById('km-flash');
+
+// =====================================================
+// データ読み込み
+// =====================================================
+fetch(JSON_URL)
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(data => {
+    loadingEl.classList.add('km-hidden');
+    setupUiEl.classList.remove('km-hidden');
+    setupUiEl.style.display = 'flex';
+    initSetup(data);
+  })
+  .catch(() => {
+    loadingEl.classList.add('km-hidden');
+    loadErrEl.classList.remove('km-hidden');
+  });
+
+document.getElementById('km-retryLoad').addEventListener('click', () => location.reload());
+
+// =====================================================
+// 設定画面：単元アコーディオン
+// =====================================================
+function initSetup(UNITS) {
+  Object.entries(UNITS).forEach(([unitName, kanjis]) => {
+    const item   = document.createElement('div'); item.className = 'km-unit-item';
+    const header = document.createElement('div'); header.className = 'km-unit-header';
+    const nameEl = document.createElement('span'); nameEl.className = 'km-unit-name'; nameEl.textContent = unitName;
+    const selEl  = document.createElement('span'); selEl.className = 'km-unit-sel';
+    const cntEl  = document.createElement('span'); cntEl.className = 'km-unit-count'; cntEl.textContent = kanjis.length + '字';
+    const cbBtn  = document.createElement('button'); cbBtn.className = 'km-unit-cb-btn'; cbBtn.textContent = '全選択';
+    const tog    = document.createElement('span'); tog.className = 'km-unit-toggle'; tog.textContent = '▶';
+    const grid   = document.createElement('div'); grid.className = 'km-kanji-grid';
+
+    function syncBadge() {
+      const n = kanjis.filter(k => selectedItems.has(unitName+'::'+k.kanji)).length;
+      selEl.textContent = n > 0 ? n+'/'+kanjis.length+' 選択' : '';
+      cbBtn.textContent = n === kanjis.length ? '全解除' : '全選択';
+      cbBtn.classList.toggle('all-sel', n === kanjis.length);
+    }
+
+    kanjis.forEach(k => {
+      const key = unitName+'::'+k.kanji;
+      const label = document.createElement('label'); label.className = 'km-kanji-chip'+(selectedItems.has(key)?' km-checked':'');
+      const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=selectedItems.has(key);
+      cb.addEventListener('change', () => {
+        if (cb.checked) { selectedItems.set(key, k); label.classList.add('km-checked'); }
+        else            { selectedItems.delete(key); label.classList.remove('km-checked'); }
+        syncBadge(); updateSelCount();
+      });
+      const span = document.createElement('span'); span.textContent = k.kanji;
+      label.appendChild(cb); label.appendChild(span);
+      label.addEventListener('click', e => e.stopPropagation());
+      grid.appendChild(label);
+    });
+
+    cbBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const allSel = kanjis.every(k => selectedItems.has(unitName+'::'+k.kanji));
+      kanjis.forEach(k => {
+        const key = unitName+'::'+k.kanji;
+        if (allSel) selectedItems.delete(key);
+        else        selectedItems.set(key, k);
+      });
+      grid.querySelectorAll('.km-kanji-chip').forEach((chip, i) => {
+        const key = unitName+'::'+kanjis[i].kanji;
+        const checked = selectedItems.has(key);
+        chip.querySelector('input').checked = checked;
+        chip.classList.toggle('km-checked', checked);
+      });
+      syncBadge(); updateSelCount();
+    });
+
+    header.addEventListener('click', e => {
+      if (e.target === cbBtn || cbBtn.contains(e.target)) return;
+      grid.classList.toggle('km-open'); tog.classList.toggle('km-open');
+    });
+
+    header.appendChild(nameEl); header.appendChild(selEl); header.appendChild(cntEl);
+    header.appendChild(cbBtn); header.appendChild(tog);
+    item.appendChild(header); item.appendChild(grid);
+    unitScroll.appendChild(item);
+    syncBadge();
+  });
+
+  startBtn.addEventListener('click', () => {
+    const kanjis = [...selectedItems.values()];
+    // 各漢字のパターンを事前生成してシャッフル
+    questions = generateAllPatterns(kanjis);
+    qIdx = 0;
+    setupEl.classList.add('km-hidden');
+    gameEl.classList.remove('km-hidden');
+    showQuestion(0);
+  });
+}
+
+function updateSelCount() {
+  const n = selectedItems.size;
+  selCount.textContent = n;
+  startBtn.disabled = n === 0;
+  startBtn.textContent = n === 0 ? '漢字を選んでください' : `▶ スタート（${n}字）`;
+}
+
+// =====================================================
+// ベジェ交差検出（テストHTMLから移植）
+// =====================================================
+function parsePathSegments(d) {
+  const segments = [];
+  let cx=0, cy=0, sx=0, sy=0;
+  const cmds = d.match(/[MmCcLlZz][^MmCcLlZz]*/g)||[];
+  cmds.forEach(cmd => {
+    const type = cmd[0];
+    const args = cmd.slice(1).match(/-?[\d.]+(?:e[-+]?\d+)?/gi)?.map(Number)||[];
+    if (type==='M') {
+      cx=args[0]; cy=args[1]; sx=cx; sy=cy;
+      for (let i=2;i<args.length;i+=2){ segments.push({type:'L',p0:{x:cx,y:cy},p1:{x:args[i],y:args[i+1]}}); cx=args[i]; cy=args[i+1]; }
+    } else if (type==='m') {
+      cx+=args[0]; cy+=args[1]; sx=cx; sy=cy;
+    } else if (type==='C') {
+      for (let i=0;i<args.length;i+=6){
+        segments.push({type:'C',p0:{x:cx,y:cy},p1:{x:args[i],y:args[i+1]},p2:{x:args[i+2],y:args[i+3]},p3:{x:args[i+4],y:args[i+5]}});
+        cx=args[i+4]; cy=args[i+5];
+      }
+    } else if (type==='c') {
+      for (let i=0;i<args.length;i+=6){
+        segments.push({type:'C',p0:{x:cx,y:cy},p1:{x:cx+args[i],y:cy+args[i+1]},p2:{x:cx+args[i+2],y:cy+args[i+3]},p3:{x:cx+args[i+4],y:cy+args[i+5]}});
+        cx+=args[i+4]; cy+=args[i+5];
+      }
+    } else if (type==='L') {
+      for (let i=0;i<args.length;i+=2){ segments.push({type:'L',p0:{x:cx,y:cy},p1:{x:args[i],y:args[i+1]}}); cx=args[i]; cy=args[i+1]; }
+    } else if (type==='l') {
+      for (let i=0;i<args.length;i+=2){ const x=cx+args[i],y=cy+args[i+1]; segments.push({type:'L',p0:{x:cx,y:cy},p1:{x,y}}); cx=x; cy=y; }
+    } else if (type==='Z'||type==='z') {
+      if(cx!==sx||cy!==sy) segments.push({type:'L',p0:{x:cx,y:cy},p1:{x:sx,y:sy}}); cx=sx; cy=sy;
+    }
+  });
+  return segments;
+}
+
+function bezierPt(seg,t) {
+  if(seg.type==='L') return {x:seg.p0.x+t*(seg.p1.x-seg.p0.x),y:seg.p0.y+t*(seg.p1.y-seg.p0.y)};
+  const mt=1-t;
+  return {x:mt**3*seg.p0.x+3*mt**2*t*seg.p1.x+3*mt*t**2*seg.p2.x+t**3*seg.p3.x,
+          y:mt**3*seg.p0.y+3*mt**2*t*seg.p1.y+3*mt*t**2*seg.p2.y+t**3*seg.p3.y};
+}
+
+function bboxOf(seg,t0,t1) {
+  let mx=Infinity,my=Infinity,ax=-Infinity,ay=-Infinity;
+  for(let i=0;i<=4;i++){const p=bezierPt(seg,t0+(t1-t0)*i/4);mx=Math.min(mx,p.x);my=Math.min(my,p.y);ax=Math.max(ax,p.x);ay=Math.max(ay,p.y);}
+  return {mx,my,ax,ay};
+}
+function bboxOvlp(a,b,m=0.5){return a.ax+m>=b.mx&&b.ax+m>=a.mx&&a.ay+m>=b.my&&b.ay+m>=a.my;}
+
+function bezierIsect(sA,sB,a0=0,a1=1,b0=0,b1=1,d=0){
+  if(!bboxOvlp(bboxOf(sA,a0,a1),bboxOf(sB,b0,b1))) return null;
+  if(d>=28||(a1-a0<0.0001&&b1-b0<0.0001)){
+    const pA=bezierPt(sA,(a0+a1)/2),pB=bezierPt(sB,(b0+b1)/2);
+    const dx=pA.x-pB.x,dy=pA.y-pB.y;
+    if(dx*dx+dy*dy<0.1) return{tA:(a0+a1)/2,tB:(b0+b1)/2,point:{x:(pA.x+pB.x)/2,y:(pA.y+pB.y)/2}};
+    return null;
+  }
+  const am=(a0+a1)/2,bm=(b0+b1)/2;
+  return bezierIsect(sA,sB,a0,am,b0,bm,d+1)||bezierIsect(sA,sB,a0,am,bm,b1,d+1)||
+         bezierIsect(sA,sB,am,a1,b0,bm,d+1)||bezierIsect(sA,sB,am,a1,bm,b1,d+1);
+}
+
+// 一時SVGで累積パス長を計算
+const _tmpSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+_tmpSvg.style.cssText='position:absolute;visibility:hidden;pointer-events:none;';
+document.body.appendChild(_tmpSvg);
+
+function makeTmpPath(d) {
+  const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d', d); _tmpSvg.appendChild(p); return p;
+}
+
+function getSegCumLens(segs) {
+  const cum=[0]; let dSoFar='';
+  segs.forEach((seg,i)=>{
+    dSoFar += (i===0?`M${seg.p0.x},${seg.p0.y}`:'') +
+      (seg.type==='L'?` L${seg.p1.x},${seg.p1.y}`:` C${seg.p1.x},${seg.p1.y} ${seg.p2.x},${seg.p2.y} ${seg.p3.x},${seg.p3.y}`);
+    const tmp=document.createElementNS('http://www.w3.org/2000/svg','path');
+    tmp.setAttribute('d',dSoFar); _tmpSvg.appendChild(tmp);
+    cum.push(tmp.getTotalLength()); _tmpSvg.removeChild(tmp);
+  });
+  return cum;
+}
+
+function checkCross(dA, dB) {
+  const segsA=parsePathSegments(dA), segsB=parsePathSegments(dB);
+  const pA=makeTmpPath(dA), pB=makeTmpPath(dB);
+  const lenA=pA.getTotalLength(), lenB=pB.getTotalLength();
+  _tmpSvg.removeChild(pA); _tmpSvg.removeChild(pB);
+  const cumA=getSegCumLens(segsA), cumB=getSegCumLens(segsB);
+  let best=null;
+  for(let ai=0;ai<segsA.length;ai++) for(let bi=0;bi<segsB.length;bi++){
+    const h=bezierIsect(segsA[ai],segsB[bi]); if(!h) continue;
+    const gTa=(cumA[ai]+h.tA*(cumA[ai+1]-cumA[ai]))/lenA;
+    const gTb=(cumB[bi]+h.tB*(cumB[bi+1]-cumB[bi]))/lenB;
+    if(!best||gTa<best.tA) best={tA:gTa,tB:gTb,point:h.point};
+  }
+  return best;
+}
+
+// パス上で交点に最も近いパス長を求める
+function findLenAtPt(pathEl, pt) {
+  const total=pathEl.getTotalLength();
+  let bl=0,bd=Infinity;
+  for(let i=0;i<=50;i++){const l=total*i/50,p=pathEl.getPointAtLength(l),d=(p.x-pt.x)**2+(p.y-pt.y)**2;if(d<bd){bd=d;bl=l;}}
+  const step=total/50;
+  let lo=Math.max(0,bl-step),hi=Math.min(total,bl+step);
+  for(let i=0;i<40;i++){const m1=lo+(hi-lo)/3,m2=hi-(hi-lo)/3,p1=pathEl.getPointAtLength(m1),p2=pathEl.getPointAtLength(m2),d1=(p1.x-pt.x)**2+(p1.y-pt.y)**2,d2=(p2.x-pt.x)**2+(p2.y-pt.y)**2;if(d1<d2)hi=m2;else lo=m1;}
+  return (lo+hi)/2;
+}
+
+// =====================================================
+// パターン生成
+// =====================================================
+function generateAllPatterns(kanjis) {
+  const all = [];
+  kanjis.forEach(k => {
+    const patterns = generatePatterns(k);
+    all.push(...patterns);
+  });
+  // Fisher-Yatesシャッフル
+  for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
+  return all;
+}
+
+function generatePatterns(k) {
+  const results = [];
+
+  // 交差ペアを検出
+  const crossPairs = [];
+  for(let i=0;i<k.strokes.length;i++){
+    for(let j=i+1;j<k.strokes.length;j++){
+      const h = checkCross(k.strokes[i], k.strokes[j]);
+      if(h) crossPairs.push({i,j,point:h.point});
+    }
+  }
+
+  // パターン1：後から描く画をランダムで1本止める（80%優先）
+  // 交差ペアのj（後から描く画）のユニークリスト
+  const jCandidates = [...new Set(crossPairs.map(p=>p.j))];
+
+  if(jCandidates.length > 0) {
+    // 全jCandidateそれぞれのパターンを生成（シャッフル時にランダムに選ばれる）
+    jCandidates.forEach(stopIdx => {
+      // stopIdxに関係する交差ペアの最小stopLen
+      const relevantPairs = crossPairs.filter(p=>p.j===stopIdx);
+      const pathEl = makeTmpPath(k.strokes[stopIdx]);
+      let minStopLen = null;
+      relevantPairs.forEach(p => {
+        const sl = findLenAtPt(pathEl, p.point);
+        if(minStopLen===null||sl<minStopLen) minStopLen=sl;
+      });
+      _tmpSvg.removeChild(pathEl);
+
+      const svg = buildSvgP1(k, stopIdx, minStopLen);
+      results.push({
+        kanji: k.kanji,
+        type: 1,
+        detail: `${stopIdx+1}画目が途中で止まっている`,
+        svgHtml: svg
+      });
+    });
+  }
+
+  // パターン2：最短の画を書かない
+  const lens = k.strokes.map(d => { const p=makeTmpPath(d); const l=p.getTotalLength(); _tmpSvg.removeChild(p); return l; });
+  const minLen = Math.min(...lens);
+  const shortestIdx = lens.indexOf(minLen);
+  const svg2 = buildSvgP2(k, shortestIdx);
+  results.push({
+    kanji: k.kanji,
+    type: 2,
+    detail: `${shortestIdx+1}画目がない`,
+    svgHtml: svg2
+  });
+
+  // 80:20になるよう重みをつけてシャッフル
+  // p1パターンを4倍、p2を1倍の割合で混ぜる（近似）
+  const weighted = [];
+  results.forEach(r => {
+    if(r.type===1) { weighted.push(r); weighted.push(r); weighted.push(r); weighted.push(r); }
+    else           { weighted.push(r); }
+  });
+  // 重複を除いてランダムに1つだけ返す
+  const picked = weighted[Math.floor(Math.random()*weighted.length)];
+  return [picked];
+}
+
+// パターン1：stopIdxの画をstopLenで止めたSVG文字列を生成
+function buildSvgP1(k, stopIdx, stopLen) {
+  let html = '';
+  k.strokes.forEach((d, i) => {
+    if(i === stopIdx) {
+      html += `<path fill="none" stroke="#1e3a5f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"
+        d="${d}" style="stroke-dasharray:${stopLen} 9999"/>`;
+    } else {
+      html += `<path fill="none" stroke="#1e3a5f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="${d}"/>`;
+    }
+  });
+  return html;
+}
+
+// パターン2：shortestIdxの画を描かないSVG文字列を生成
+function buildSvgP2(k, skipIdx) {
+  let html = '';
+  k.strokes.forEach((d, i) => {
+    if(i === skipIdx) return; // スキップ
+    html += `<path fill="none" stroke="#1e3a5f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="${d}"/>`;
+  });
+  return html;
+}
+
+// =====================================================
+// 問題表示
+// =====================================================
+function showQuestion(idx) {
+  qIdx = idx;
+  const q = questions[idx];
+  qNowEl.textContent   = idx + 1;
+  qTotalEl.textContent = questions.length;
+
+  // SVG即時表示
+  strokesEl.innerHTML = q.svgHtml;
+
+  // パターン表示
+  patternPill.textContent = q.type === 1 ? '✏️ 途中で止まる' : '🚫 1画ない';
+
+  // 答えを隠す
+  answerText.classList.remove('km-show');
+  answerText.textContent = q.detail;
+  patternBadge.style.display = 'none';
+  correctEl.textContent = q.kanji;
+  correctEl.style.opacity = '0.12';
+
+  nextBtn.textContent = idx >= questions.length - 1 ? '（最後の問題）' : '次の問題 ▶';
+  nextBtn.disabled    = idx >= questions.length - 1;
+}
+
+// =====================================================
+// ボタンイベント
+// =====================================================
+nextBtn.addEventListener('click', () => {
+  if(qIdx < questions.length - 1) showQuestion(qIdx + 1);
+});
+
+revealBtn.addEventListener('click', () => {
+  const q = questions[qIdx];
+  answerText.classList.add('km-show');
+  patternBadge.style.display = 'inline-flex';
+  patternBadge.className = 'km-pattern-badge ' + (q.type===1?'p1':'p2');
+  patternBadge.textContent = q.type===1 ? '✏️ 途中で止まる' : '🚫 1画ない';
+  correctEl.style.opacity = '1';
+});
+
+backSetup.addEventListener('click', () => {
+  gameEl.classList.add('km-hidden');
+  setupEl.classList.remove('km-hidden');
+});
+</script>
+</body>
+</html>
